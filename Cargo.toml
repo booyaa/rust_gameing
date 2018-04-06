@@ -1,0 +1,7 @@
+[package]
+name = "first-ggez"
+version = "0.1.0"
+authors = ["booyaa <booyaabooyaabooyaa@gmail.com>"]
+
+[dependencies]
+ggez = "0.4"
