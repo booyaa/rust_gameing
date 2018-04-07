@@ -51,14 +51,70 @@ impl Player {
     }
 }
 
+struct Bullet {
+    x: f32,
+    y: f32,
+}
+
+impl Bullet {
+    fn new(player_x: f32, player_y: f32, player_width: u32) -> GameResult<Bullet> {
+        Ok(Bullet {
+            x : player_x + (player_width as f32 / 2.0),
+            y : player_y
+        })
+    }
+
+    fn handle(&mut self, _ctx: &mut Context, dt: f32) {
+        self.y += -500.0 * dt;
+    }
+}
+
+struct BulletState {
+    bullet_image: graphics::Image,
+    can_shoot: bool,
+    can_shoot_timer_max: f32,
+    can_shoot_timer: f32
+}
+
+impl BulletState {
+    fn new(_ctx: &mut Context) -> GameResult<BulletState> {
+        Ok(BulletState {
+            bullet_image: graphics::Image::new(_ctx, "/bullet.png").unwrap(),
+            can_shoot: true,
+            can_shoot_timer_max: 0.2,
+            can_shoot_timer: 0.2,
+        })
+    }
+
+    // fn handle(&mut self, _ctx: &mut Context, dt: f32) {
+    //     self.can_shoot_timer = self.can_shoot_timer - (1.0 * dt);
+    //         if self.can_shoot_timer < 0.0 {
+    //             self.can_shoot = true;
+    //         }
+    //         // shots: https://github.com/AndrewRadev/rust-shooter
+    //         // might help (bullets): https://github.com/keeslinp/rust_invaders
+    //         for (idx, mut bullet) in self.bullets.into_iter().enumerate(){
+    //             bullet.y = bullet.y - (250.0 * dt);
+
+    //             if bullet.y < 0.0 {
+    //                 self.bullets.remove(idx);
+    //             }
+                
+    //         }
+    // }
+}
 struct MainState {
     player: Player,
+    bullet_state: BulletState,
+    bullets: Vec<Bullet>,
 }
 
 impl MainState {
     fn new(mut _ctx: &mut Context) -> GameResult<MainState> {
         Ok(MainState {
             player: Player::new(&mut _ctx)?,
+            bullet_state: BulletState::new(&mut _ctx)?,
+            bullets: Vec::new(),
         })
     }
 }
@@ -70,7 +126,14 @@ impl event::EventHandler for MainState {
         while timer::check_update_time(_ctx, DESIRED_FPS) {
             let seconds = 1.0 / (DESIRED_FPS as f32);
 
+            for bullet in self.bullets.iter_mut() {
+                bullet.handle(_ctx, seconds);
+            }
+
             self.player.player_handle_input(_ctx, seconds);
+
+            // cleanup
+            self.bullets.retain(|bullet| bullet.y >= 0.0);
         }
         Ok(())
     }
@@ -82,6 +145,13 @@ impl event::EventHandler for MainState {
         let dest_point = graphics::Point2::new(self.player.x, self.player.y);
         let rotation = 0.0;
         graphics::draw(ctx, &self.player.image, dest_point, rotation)?;
+
+        // bullets
+        for bullet in self.bullets.iter_mut() {
+            let dest_point = graphics::Point2::new(bullet.x, bullet.y);
+            let rotation = 0.0;
+            graphics::draw(ctx, &self.bullet_state.bullet_image, dest_point, rotation)?;
+        }
 
         graphics::present(ctx);
         Ok(())
@@ -99,6 +169,12 @@ impl event::EventHandler for MainState {
             }
             Keycode::Right | Keycode::D => {
                 self.player.direction = Direction::Right;
+            }
+            Keycode::Space => {
+                let bullet = Bullet::new(self.player.x,self.player.y, self.player.image.width()).unwrap();
+                self.bullets.push(bullet);
+                println!("pew! {}", self.bullets.len());
+
             }
             Keycode::Escape => _ctx.quit().unwrap(),
 
