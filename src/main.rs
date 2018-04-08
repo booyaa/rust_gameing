@@ -85,24 +85,8 @@ impl BulletState {
             can_shoot_timer: 0.2,
         })
     }
-
-    // fn handle(&mut self, _ctx: &mut Context, dt: f32) {
-    //     self.can_shoot_timer = self.can_shoot_timer - (1.0 * dt);
-    //         if self.can_shoot_timer < 0.0 {
-    //             self.can_shoot = true;
-    //         }
-    //         // shots: https://github.com/AndrewRadev/rust-shooter
-    //         // might help (bullets): https://github.com/keeslinp/rust_invaders
-    //         for (idx, mut bullet) in self.bullets.into_iter().enumerate(){
-    //             bullet.y = bullet.y - (250.0 * dt);
-
-    //             if bullet.y < 0.0 {
-    //                 self.bullets.remove(idx);
-    //             }
-                
-    //         }
-    // }
 }
+
 struct MainState {
     player: Player,
     bullet_state: BulletState,
@@ -126,13 +110,18 @@ impl event::EventHandler for MainState {
         while timer::check_update_time(_ctx, DESIRED_FPS) {
             let seconds = 1.0 / (DESIRED_FPS as f32);
 
+            self.bullet_state.can_shoot_timer = self.bullet_state.can_shoot_timer - (1.0 * seconds);
+            if self.bullet_state.can_shoot_timer < 0.0 {
+                self.bullet_state.can_shoot = true;
+            }
+
             for bullet in self.bullets.iter_mut() {
                 bullet.handle(_ctx, seconds);
             }
 
             self.player.player_handle_input(_ctx, seconds);
 
-            // cleanup
+            // remove bullets that have vanished off screen
             self.bullets.retain(|bullet| bullet.y >= 0.0);
         }
         Ok(())
@@ -173,7 +162,10 @@ impl event::EventHandler for MainState {
             Keycode::Space => {
                 let bullet = Bullet::new(self.player.x,self.player.y, self.player.image.width()).unwrap();
                 self.bullets.push(bullet);
+                self.bullet_state.can_shoot = false;
+                self.bullet_state.can_shoot_timer = self.bullet_state.can_shoot_timer_max;
                 println!("pew! {}", self.bullets.len());
+
 
             }
             Keycode::Escape => _ctx.quit().unwrap(),
