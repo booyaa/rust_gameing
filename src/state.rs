@@ -75,6 +75,13 @@ impl event::EventHandler for MainState {
             graphics::draw(ctx, &self.assets.bullet, dest_point, rotation)?;
         }
 
+        //TODO add feature toggle
+        let fps = timer::get_fps(ctx);
+        let font = graphics::Font::new(ctx, "/DejaVuSerif.ttf", 8)?;
+        let text = graphics::Text::new(ctx, &format!("Current FPS: {:.0}", fps), &font)?;
+        let dest_point = graphics::Point2::new(10.0, 10.0);
+        graphics::draw(ctx, &text, dest_point, 0.0)?;
+
         graphics::present(ctx);
         Ok(())
     }
