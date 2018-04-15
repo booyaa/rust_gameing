@@ -17,11 +17,29 @@ impl BulletState {
     }
 }
 
+pub struct EnemyState {
+    pub create_timer: f32,
+    pub create_timer_max: f32,
+}
+
+impl EnemyState {
+    pub fn new(_ctx: &mut Context) -> GameResult<EnemyState> {
+        Ok(EnemyState {
+            create_timer: 0.4,
+            create_timer_max: 0.4,
+            //faster create_timer: 1.0,
+            // create_timer_max: 1.0,
+        })
+    }
+}
+
 pub struct MainState {
     assets: super::entity::Assets,
     player: super::entity::Player,
     bullet_state: BulletState,
     bullets: Vec<super::entity::Bullet>,
+    enemy_state: EnemyState,
+    enemies: Vec<super::entity::Enemy>,
 }
 
 impl MainState {
@@ -31,6 +49,8 @@ impl MainState {
             player: super::entity::Player::new(&mut _ctx)?,
             bullet_state: BulletState::new(&mut _ctx)?,
             bullets: Vec::new(),
+            enemy_state: EnemyState::new(&mut _ctx)?,
+            enemies: Vec::new(),
         })
     }
 }
@@ -47,15 +67,31 @@ impl event::EventHandler for MainState {
                 self.bullet_state.can_shoot = true;
             }
 
+            self.enemy_state.create_timer = self.enemy_state.create_timer - (1.0 * seconds);
+            if self.enemy_state.create_timer < 0.0 {
+                self.enemy_state.create_timer = self.enemy_state.create_timer_max;
+                let enemy = super::entity::Enemy::new(_ctx).unwrap(); // FIXME: randomize pos
+                self.enemies.push(enemy);
+                println!("enemies: {}", self.enemies.len());
+            }
+
             for bullet in self.bullets.iter_mut() {
                 bullet.handle(_ctx, seconds);
             }
 
-            self.player
-                .player_handle_input(_ctx, seconds, self.assets.player.width());
+            for enemy in self.enemies.iter_mut() {
+                enemy.y = enemy.y + (200.0 * seconds);
+            }
 
             // remove bullets that have vanished off screen
             self.bullets.retain(|bullet| bullet.y >= 0.0);
+
+            self.enemies.retain(|enemy| enemy.y < 850.0);
+
+            // collision detection
+
+            self.player
+                .player_handle_input(_ctx, seconds, self.assets.player.width());
         }
         Ok(())
     }
@@ -73,6 +109,13 @@ impl event::EventHandler for MainState {
             let dest_point = graphics::Point2::new(bullet.x, bullet.y);
             let rotation = 0.0;
             graphics::draw(ctx, &self.assets.bullet, dest_point, rotation)?;
+        }
+
+        // enemies
+        for enemy in self.enemies.iter_mut() {
+            let dest_point = graphics::Point2::new(enemy.x, enemy.y);
+            let rotation = 0.0;
+            graphics::draw(ctx, &self.assets.enemy, dest_point, rotation)?;
         }
 
         //TODO add feature toggle

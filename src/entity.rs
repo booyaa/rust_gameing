@@ -1,5 +1,7 @@
-extern crate ggez;
 use ggez::{graphics, Context, GameResult};
+
+extern crate rand;
+use rand::*;
 
 #[derive(Debug)]
 pub enum Direction {
@@ -8,6 +10,7 @@ pub enum Direction {
     Right,
 }
 
+#[derive(Debug)]
 pub struct Player {
     pub x: f32,
     pub y: f32,
@@ -47,7 +50,7 @@ impl Player {
         }
     }
 }
-
+#[derive(Debug)]
 pub struct Bullet {
     pub x: f32,
     pub y: f32,
@@ -66,9 +69,26 @@ impl Bullet {
     }
 }
 
+#[derive(Debug)]
+pub struct Enemy {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Enemy {
+    pub fn new(ctx: &mut Context) -> GameResult<Enemy> {
+        let (_, width) = graphics::get_size(ctx);
+        let mut rng = rand::thread_rng();
+        let x_pos = rng.gen_range(10.0, width as f32) - 50.0;
+
+        Ok(Enemy { x: x_pos, y: -10.0 })
+    }
+}
+
 pub struct Assets {
     pub player: graphics::Image,
     pub bullet: graphics::Image,
+    pub enemy: graphics::Image,
 }
 
 impl Assets {
@@ -76,6 +96,7 @@ impl Assets {
         Ok(Assets {
             player: graphics::Image::new(_ctx, "/plane.png").unwrap(),
             bullet: graphics::Image::new(_ctx, "/bullet.png").unwrap(),
+            enemy: graphics::Image::new(_ctx, "/enemy.png").unwrap(),
         })
     }
 }
