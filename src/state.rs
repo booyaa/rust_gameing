@@ -47,6 +47,7 @@ pub struct MainState {
     enemy_state: EnemyState,
     enemies: Vec<super::entity::Enemy>,
     score: u32,
+    restart: bool,
 }
 
 impl MainState {
@@ -59,6 +60,7 @@ impl MainState {
             enemy_state: EnemyState::new(&mut _ctx)?,
             enemies: Vec::new(),
             score: 0,
+            restart: false,
         })
     }
 }
@@ -106,20 +108,48 @@ impl event::EventHandler for MainState {
                         bullet.x,
                         bullet.y,
                         self.assets.bullet.width() as f32,
-                        self.assets.bullet.height() as f32,
+                        self.assets.bullet.height() as f32
                     ) {
-                        println!("Score!");
                         enemy.alive = false;
                         bullet.alive = false;
                         self.score = self.score + 1;
                     }
                 }
+
+                if is_collision(
+                    enemy.x,
+                    enemy.y,
+                    self.assets.enemy.width() as f32,
+                    self.assets.enemy.height() as f32,
+                    self.player.x,
+                    self.player.y,
+                    self.assets.player.width() as f32,
+                    self.assets.player.height() as f32,
+                ) {
+                    enemy.alive = false;
+                    self.player.alive = false;
+                }
             }
 
+            
+
+            
             // clean up vecs if bullets or enemies have flown off screen or collided
             self.bullets
                 .retain(|bullet| bullet.alive && bullet.y >= 0.0);
             self.enemies.retain(|enemy| enemy.alive && enemy.y < 850.0);
+
+            if ! self.player.alive && self.restart {
+                self.bullets.clear();
+                self.enemies.clear();
+                self.bullet_state.can_shoot_timer = self.bullet_state.can_shoot_timer_max;
+                self.enemy_state.create_timer = self.enemy_state.create_timer_max;
+                self.player.x = 50.0;
+                self.player.y = 710.0;
+                self.player.alive = true;
+                self.score = 0;
+                self.restart = false;
+            }
 
             self.player
                 .player_handle_input(_ctx, seconds, self.assets.player.width());
@@ -130,10 +160,6 @@ impl event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
         graphics::set_background_color(ctx, graphics::BLACK);
-
-        let dest_point = graphics::Point2::new(self.player.x, self.player.y);
-        let rotation = 0.0;
-        graphics::draw(ctx, &self.assets.player, dest_point, rotation)?;
 
         // bullets
         for bullet in self.bullets.iter_mut() {
@@ -160,6 +186,19 @@ impl event::EventHandler for MainState {
         let dest_point = graphics::Point2::new(400.0, 10.0);
         graphics::draw(ctx, &text, dest_point, 0.0)?;
 
+        if self.player.alive {
+            let dest_point = graphics::Point2::new(self.player.x, self.player.y);
+            let rotation = 0.0;
+            graphics::draw(ctx, &self.assets.player, dest_point, rotation)?;
+        } else {
+            let (screen_width, screen_height) = graphics::get_size(ctx);
+            let text = graphics::Text::new(ctx, "Press 'R' to restart", &font)?;
+            let dest_point = graphics::Point2::new((screen_width / 2 - 50) as f32, (screen_height/2 - 10) as f32);
+            graphics::draw(ctx, &text, dest_point, 0.0)?;
+        }
+        
+
+
         graphics::present(ctx);
         Ok(())
     }
@@ -178,6 +217,9 @@ impl event::EventHandler for MainState {
                 self.player.direction = super::entity::Direction::Right;
             }
             Keycode::Space => {
+                if ! self.player.alive {
+                    return;
+                }
                 let bullet = super::entity::Bullet::new(
                     self.player.x,
                     self.player.y,
@@ -187,6 +229,10 @@ impl event::EventHandler for MainState {
                 self.bullet_state.can_shoot = false;
                 self.bullet_state.can_shoot_timer = self.bullet_state.can_shoot_timer_max;
             }
+            Keycode::R => {
+                self.restart = true;
+            }
+                
             Keycode::Escape => _ctx.quit().unwrap(),
 
             _ => (), // do nothing
