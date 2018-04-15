@@ -16,6 +16,7 @@ pub struct Player {
     pub y: f32,
     pub speed: f32,
     pub direction: Direction,
+    pub alive: bool,
 }
 
 impl Player {
@@ -27,6 +28,7 @@ impl Player {
             // faster speed: 350.0,
             // slower speed: 50.0,
             direction: Direction::Idle,
+            alive: true,
         })
     }
 
@@ -54,6 +56,7 @@ impl Player {
 pub struct Bullet {
     pub x: f32,
     pub y: f32,
+    pub alive: bool,
 }
 
 impl Bullet {
@@ -61,6 +64,7 @@ impl Bullet {
         Ok(Bullet {
             x: player_x + (player_width as f32 / 2.0),
             y: player_y,
+            alive: true,
         })
     }
 
@@ -73,6 +77,7 @@ impl Bullet {
 pub struct Enemy {
     pub x: f32,
     pub y: f32,
+    pub alive: bool,
 }
 
 impl Enemy {
@@ -81,7 +86,11 @@ impl Enemy {
         let mut rng = rand::thread_rng();
         let x_pos = rng.gen_range(10.0, width as f32) - 50.0;
 
-        Ok(Enemy { x: x_pos, y: -10.0 })
+        Ok(Enemy {
+            x: x_pos,
+            y: -10.0,
+            alive: true,
+        })
     }
 }
 

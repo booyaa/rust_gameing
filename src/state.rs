@@ -1,6 +1,10 @@
 use ggez::*;
 use ggez::event::{Keycode, Mod};
 
+fn is_collision(x1: f32, y1: f32, w1: f32, h1: f32, x2: f32, y2: f32, w2: f32, h2: f32) -> bool {
+    x1 < x2 + w2 && x2 < x1 + w1 && y1 < y2 + h2 && y2 < y1 + h1
+}
+
 pub struct BulletState {
     pub can_shoot: bool,
     pub can_shoot_timer_max: f32,
@@ -25,10 +29,12 @@ pub struct EnemyState {
 impl EnemyState {
     pub fn new(_ctx: &mut Context) -> GameResult<EnemyState> {
         Ok(EnemyState {
+            // create_timer: 0.2, // very fast
+            // create_timer_max: 0.2,
             create_timer: 0.4,
             create_timer_max: 0.4,
-            //faster create_timer: 1.0,
-            // create_timer_max: 1.0,
+            // create_timer: 2.0, // slow
+            // create_timer_max: 2.0,
         })
     }
 }
@@ -40,6 +46,7 @@ pub struct MainState {
     bullets: Vec<super::entity::Bullet>,
     enemy_state: EnemyState,
     enemies: Vec<super::entity::Enemy>,
+    score: u32,
 }
 
 impl MainState {
@@ -51,6 +58,7 @@ impl MainState {
             bullets: Vec::new(),
             enemy_state: EnemyState::new(&mut _ctx)?,
             enemies: Vec::new(),
+            score: 0,
         })
     }
 }
@@ -62,11 +70,13 @@ impl event::EventHandler for MainState {
         while timer::check_update_time(_ctx, DESIRED_FPS) {
             let seconds = 1.0 / (DESIRED_FPS as f32);
 
+            // set timer for how far apart our shots can be
             self.bullet_state.can_shoot_timer = self.bullet_state.can_shoot_timer - (1.0 * seconds);
             if self.bullet_state.can_shoot_timer < 0.0 {
                 self.bullet_state.can_shoot = true;
             }
 
+            // set timer for how many enemies to spawn
             self.enemy_state.create_timer = self.enemy_state.create_timer - (1.0 * seconds);
             if self.enemy_state.create_timer < 0.0 {
                 self.enemy_state.create_timer = self.enemy_state.create_timer_max;
@@ -75,20 +85,41 @@ impl event::EventHandler for MainState {
                 println!("enemies: {}", self.enemies.len());
             }
 
+            // update the position of the bullets
             for bullet in self.bullets.iter_mut() {
                 bullet.handle(_ctx, seconds);
             }
 
+            // update the position of the enemies
             for enemy in self.enemies.iter_mut() {
                 enemy.y = enemy.y + (200.0 * seconds);
             }
 
-            // remove bullets that have vanished off screen
-            self.bullets.retain(|bullet| bullet.y >= 0.0);
+            // check if enemies against bullets
+            for enemy in self.enemies.iter_mut() {
+                for bullet in self.bullets.iter_mut() {
+                    if is_collision(
+                        enemy.x,
+                        enemy.y,
+                        self.assets.enemy.width() as f32,
+                        self.assets.enemy.height() as f32,
+                        bullet.x,
+                        bullet.y,
+                        self.assets.bullet.width() as f32,
+                        self.assets.bullet.height() as f32,
+                    ) {
+                        println!("Score!");
+                        enemy.alive = false;
+                        bullet.alive = false;
+                        self.score = self.score + 1;
+                    }
+                }
+            }
 
-            self.enemies.retain(|enemy| enemy.y < 850.0);
-
-            // collision detection
+            // clean up vecs if bullets or enemies have flown off screen or collided
+            self.bullets
+                .retain(|bullet| bullet.alive && bullet.y >= 0.0);
+            self.enemies.retain(|enemy| enemy.alive && enemy.y < 850.0);
 
             self.player
                 .player_handle_input(_ctx, seconds, self.assets.player.width());
@@ -125,15 +156,19 @@ impl event::EventHandler for MainState {
         let dest_point = graphics::Point2::new(10.0, 10.0);
         graphics::draw(ctx, &text, dest_point, 0.0)?;
 
+        let text = graphics::Text::new(ctx, &format!("SCORE: {:.0}", self.score), &font)?;
+        let dest_point = graphics::Point2::new(400.0, 10.0);
+        graphics::draw(ctx, &text, dest_point, 0.0)?;
+
         graphics::present(ctx);
         Ok(())
     }
 
     fn key_down_event(&mut self, _ctx: &mut Context, keycode: Keycode, keymod: Mod, repeat: bool) {
-        println!(
-            "Key pressed: {:?}, modifier {:?}, repeat: {}, x: {} direction: {:?}",
-            keycode, keymod, repeat, self.player.x, self.player.direction
-        );
+        // println!(
+        //     "Key pressed: {:?}, modifier {:?}, repeat: {}, x: {} direction: {:?}",
+        //     keycode, keymod, repeat, self.player.x, self.player.direction
+        // );
 
         match keycode {
             Keycode::Left | Keycode::A => {
@@ -151,7 +186,6 @@ impl event::EventHandler for MainState {
                 self.bullets.push(bullet);
                 self.bullet_state.can_shoot = false;
                 self.bullet_state.can_shoot_timer = self.bullet_state.can_shoot_timer_max;
-                println!("pew! {}", self.bullets.len());
             }
             Keycode::Escape => _ctx.quit().unwrap(),
 
@@ -160,10 +194,10 @@ impl event::EventHandler for MainState {
     }
 
     fn key_up_event(&mut self, _ctx: &mut Context, keycode: Keycode, keymod: Mod, repeat: bool) {
-        println!(
-            "Key pressed: {:?}, modifier {:?}, repeat: {}",
-            keycode, keymod, repeat
-        );
+        // println!(
+        //     "Key pressed: {:?}, modifier {:?}, repeat: {}",
+        //     keycode, keymod, repeat
+        // );
         self.player.direction = super::entity::Direction::Idle
     }
 }
